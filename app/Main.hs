@@ -3,7 +3,7 @@ module Main where
 
 import System.IO                        (stdout,stdin)
 import Control.Monad.IO.Class           (liftIO)
-import Control.Monad                    (mzero)
+import Control.Monad                    (mzero,forever)
 import Data.Aeson.Parser                (json)
 import Data.Conduit                     (($$))
 import Data.Conduit.Attoparsec          (sinkParser)
@@ -40,14 +40,13 @@ instance FromJSON Tweet where
     parseJSON (Object v) = Tweet <$> v .: "text" <*> v .: "user"
     parseJSON _ = mzero
 
-printSink = do
-    j <- sinkParser json
-    case fromJSON j of
-        Success (Tweet {text=t, user=User { screenName=name }}) -> do
+printSink = forever $
+  sinkParser json >>= (printTweet . fromJSON)
+    where
+      printTweet (Success (Tweet {text=t, user=User { screenName=name }})) = do
             liftIO $ TI.putStrLn $ T.concat [name, ": ", t]
             liftIO $ TI.putStrLn "----------------------------------------"
-        Error _ -> liftIO $ return ()
-    printSink
+      printTweet (Error _) = liftIO $ return ()
 
 main :: IO ()
 main = do
